@@ -9,7 +9,6 @@ Do those steps over and over again if the socket is open.
 Usage: python3 step.py 31415 s0.in
 '''
 
-
 import sys
 import socket
 
@@ -36,9 +35,9 @@ def get_view(game):
             if temp_x < 0 or temp_y < 0 or temp_x >= len(game) or temp_y >= len(game[0]):
                 view[i][j] = '.'
             else:
-                view[i][j] = game[temp_x][temp_y] 
+                view[i][j] = game[temp_x][temp_y]
     if view[2][2] == 'v':       # if agent is 'v', rotate twice
-        view = rotate(view, 2)    
+        view = rotate(view, 2)
     if view[2][2] == '<':       # if agent is '<', rotate once
         view = rotate(view, 1)
     if view[2][2] == '>':
@@ -67,7 +66,8 @@ def chop_tree(x, y):
     global inventory
     if game[x][y] == 'T':
         game[x][y] = ' '
-        inventory['r'] += 1
+        if inventory['r'] == 0:
+            inventory['r'] += 1
 
 def unlock_door(x, y):
     global game
@@ -84,13 +84,13 @@ with open(filename) as f:
 
 inventory = {'a':0, 'k':0, 'o':0, '$':0, 'r':0}   # Initialise the inventory using a dictionary
 pickable = ['a', 'k', 'o', '$']
-stepping_stone = False        # these two variables are used to track if the agent is on 
+stepping_stone = False        # these two variables are used to track if the agent is on
 raft = False                  # a stepping stone or a raft
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)   # create a TCP socket
 sock.bind(('localhost', port))   # bind the socket to the port
 sock.listen(5)                   # listen for incoming connections
-conn, addr = sock.accept() 
+conn, addr = sock.accept()
 
 while True:
     print('\n'.join(map(''.join, game)))
@@ -166,13 +166,13 @@ while True:
             raft = False
         else:
             game[x][y], game[m][n] = ' ', game[x][y]
-        pick_up(temp)  
+        pick_up(temp)
 
     if game[m][n] == '~':
         if raft:
             game[x][y], game[m][n] = '~', game[x][y]
             continue
-        
+
         if inventory['r'] <= 0 and inventory['o'] <= 0:
             print("You dropped into river. Game over.")
             sock.close()
@@ -203,7 +203,7 @@ while True:
             chop_tree(x, y - 1)
         if game[x][y] == '>':
             chop_tree(x, y + 1)
-    
+
     if action == 'u' or action == 'U':
         if inventory['k'] <= 0:
             continue
@@ -218,4 +218,4 @@ while True:
             unlock_door(x, y + 1)
 
 
-   
+
