@@ -19,7 +19,7 @@ inventory = {'a':0, 'k':0, 'o':0, '$':0, 'r':0}
 pickable = ['a', 'k', 'o', '$']
 
 def move(view):
-    if view[1][2] = ' ':
+    if view[1][2] == ' ':
         view[2][2], view[1][2] = view[1][2], view[2][2]
         action.append('f')
     elif view[1][2] in pickable:
@@ -38,56 +38,67 @@ def move(view):
             action.append('u')
     else: 
         action.append('r', 'r')
-return action 
-
-
-
+    return action 
+        
 class Agent:
     def __init__(self):
-        self.inventory = {'a':0, 'k':0, 'o':0, '$':0, 'r':0}
+        self.inventory = {'a':False, 'k':False, '$':False, 'r':False, 'o':0}
 
         self.axe_location = []
         self.key_location = []
         self.stepping_stone = []
         self.space_location = []
         self.water_location = []
-
-        self.gold_location = None
-        self.is_gold_found = False
+        self.tree_location = []
+        self.gold_location = []
+        
         self.agent_x = 0
         self.agent_y = 0
 
-        self.direction = '^'           # Always consider the agent direction is '^
+        self.direction = '^'                  # Always consider the agent direction is '^'
 
-        self.hashmap = {}              # Initialize the hashmap
-        for i in range(-80, 81):
-            for j in range(-80, 81):
-                self.hashmap[(i, j)] = '?'
-        self.hashmap[(0, 0)] = '^'
+        self.hashmap = {}                     # Initialize the hashmap
+        for i in range(-79, 80):              # size 159 * 159 
+            for j in range(-79, 80):   
+                self.hashmap[(i, j)] = '?'    # Initialize the hashmap to unkown value, represent by '?'
+        self.hashmap[(0, 0)] = '^'            # always consider the agent is facing up
+
+        self.pending_move = []                # list to store the pending moves
         
     def rotate(self, view, time):                 # rotate 2d list clockwise
-        for i in range(time):
+        for _ in range(time):
             temp = zip(*view[::-1])               # return a list of tuples
             view = [list(elem) for elem in temp]  # convert list of tuples to list of lists
         return view
 
-    def get_front_tail(self):
+    def can_move(self):
+        x, y, front = self.get_front_tail()
+        if front in [' ', 'k', 'a']:
+            return True
+        return False
+
+    def get_front_tail(self):                     # get the grid in front the agent
         if self.direction == '^':
-            return self.hashmap[(self.agent_x - 1, self.agent_y)]
+            x = self.agent_x - 1
+            y = self.agent_y
         elif self.direction == '>':
-            return self.hashmap[(self.agent_x, self.agent_y + 1)]
+            x = self.agent_x
+            y = self.agent_y + 1
         elif self.direction == 'v':
-            return self.hashmap[(self.agent_x + 1, self.agent_y)]
+            x = self.agent_x + 1
+            y = self.agent_y
         else:
-            return self.hashmap[(self.agent_x, self.agent_y - 1)]
+            x = self.agent_x
+            y = self.agent_y - 1
+        return x, y, self.hashmap[(x, y)]
 
     def update_from_view(self, view):
         # Rotate the view based on which direction the agent is facing
-        if self.direction = '>':        
+        if self.direction == '>':        
             view = self.rotate(view, 1)
-        if self.direction = 'v':
+        if self.direction == 'v':
             view = self.rotate(view, 2)
-        if self.direction = '<':
+        if self.direction == '<':
             view = self.rotate(view, 3)
 
         # Iterate through the view and update the internal map
@@ -105,16 +116,19 @@ class Agent:
                     self.key_location.append((x, y))
                 if view[i][j] == 'o' and (x, y) not in self.stepping_stone:
                     self.stepping_stone.append((x, y))
-                # if view[i][j] == ' ' and (x, y) not in self.space_location:
-                #     self.space_location.append((x, y))
+                if view[i][j] == ' ' and (x, y) not in self.space_location:
+                    self.space_location.append((x, y))
                 if view[i][j] == '~' and (x, y) not in self.water_location:
                     self.water_location.append((x, y))
-                if view[i][j] == '$' and self.is_gold_found == False:
-                    self.gold_location = (x, y)
-                    self.is_gold_found = True
+                if view[i][j] == 'T' and (x, y) not in self.tree_location:
+                    self.tree_location.append((x, y)) 
+                if view[i][j] == '$' and (x, y) not in self.gold_location:
+                    self.gold_location.append((x, y))
 
     def update_from_move(self, move):
-        move = move.upper()          # convert move to upper case
+        x, y, front = self.get_front_tail()   # get the grid in front
+        move = move.upper()                   # Convert to upper case
+         
         if move == 'L':
             if self.direction == '^':
                 self.direction = '<'
@@ -124,8 +138,8 @@ class Agent:
                 self.direction = '>'
             else:
                 self.direction = 'v'
-        
-        if move == 'R:
+
+        if move == 'R':
             if self.direction == '^':
                 self.direction = '>'
             elif self.direction == '>':
@@ -136,32 +150,52 @@ class Agent:
                 self.direction = '^'
 
         if move == 'F':
-            thing = self.get_front_tail()
-            if thing == '-' or thing == 'T' or thing == '*':  # if it's obstacles, do nothing
+            if front in ['*', '-', 'T', ' ']:      # Do nothing
                 return
-            if thing == ' ':                                  # if it's space, move to this space
-                
-            if thing in pickable:
-                inventory[thing] += 1
-            
+
+            self.agent_x, self.agent_y = x, y      # update the agent's location
+            if front == 'a':
+                self.axe_location.remove((x, y))
+                self.inventory['a'] = True
+            if front == 'k':
+                self.key_location.remove((x, y))
+                self.inventory['k'] = True
+            if front == '$':
+                self.gold_location.remove((x, y))
+                self.inventory['$'] = True
+            if front == 'o':
+                self.stepping_stone.remove((x, y))
+                self.inventory['o'] += 1
+            if front == '~':
+                if inventory['o'] <= 0 and inventory['r']:
+                    inventory['r'] == False
+                if inventory['o'] >= 1:
+                    inventory['o'] -= 1
+                    self.water_location.remove((x, y))
+
+        if move == 'C' and front== 'T':
+            inventory['r'] = True
+
+    def move(self):
+        pass
+
+    def convert_hashmap_to_list(self, hashmap):
+        result = [[ ' ' for i in range(161)] for j in range(161)]
+        for i in range(-80, 81):
+            for j in range(-80, 81):
+                result[i + 80][j + 80] = hashmap[(i, j)]
+        return result
+    
+    def print_list(self, input_list):
+        print('\n'.join(map(''.join, input_list)))
 
 
 
-
-
-
-
-
-
-
-first_time = True
+agent = Agent()
 
 # function to take get action from AI or user
 def get_action(view):
     ## REPLACE THIS WITH AI CODE TO CHOOSE ACTION ##
-    if first_time:
-        hashmap[()]
-    
 
     # input loop to take input from user (only returns if this is valid)
     while 1:

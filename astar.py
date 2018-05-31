@@ -2,20 +2,20 @@
 ## my comments are with two hashtags
 ## this code will get two points of interest and return the action
 
-
 class Node:
-    def __init__(self,value,point):
+    def __init__(self, value, point):
         self.value = value
         self.point = point
         self.parent = None
         self.H = 0
         self.G = 0
-    def move_cost(self,other):
+
+    def move_cost(self, other):
         return 0 if self.value == '.' else 1
 
-def children(point,grid):
-    ## x,y is the point of the agent
-    x,y = point.point
+def children(point, grid):
+    
+    x, y = point.point    ## x,y is the point of the agent
     ## x = x + 80
     ## y = y + 80
     min_coord = 0
@@ -159,7 +159,5 @@ path_coordinates = next_move((agent_x, agent_y),(axe_x, axe_y), grid)
 print(path_coordinates)
 print(rotate(path_coordinates, grid))
 print(action_to_take(rotate(path_coordinates, grid)))
-# grid = hashmap
 
-# next_move((agent_x, agent_y),(axe_x, axe_y), grid)
 

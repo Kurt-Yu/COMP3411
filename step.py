@@ -156,41 +156,41 @@ while True:
                 game[x][y], game[m][n] = ' ', game[x][y]
                 stepping_stone = True
 
-    if game[m][n] in pickable:
-        temp = game[m][n]
-        if stepping_stone:
-            game[x][y], game[m][n] = 'O', game[x][y]
-            stepping_stone = False
-        elif raft:
-            game[x][y], game[m][n] = '~', game[x][y]
-            raft = False
-        else:
-            game[x][y], game[m][n] = ' ', game[x][y]
-        pick_up(temp)
-
-    if game[m][n] == '~':
-        if raft:
-            game[x][y], game[m][n] = '~', game[x][y]
-            continue
-
-        if inventory['r'] <= 0 and inventory['o'] <= 0:
-            print("You dropped into river. Game over.")
-            sock.close()
-        if inventory['o'] > 0:
+        if game[m][n] in pickable:
+            temp = game[m][n]
             if stepping_stone:
                 game[x][y], game[m][n] = 'O', game[x][y]
+                stepping_stone = False
+            elif raft:
+                game[x][y], game[m][n] = '~', game[x][y]
+                raft = False
             else:
                 game[x][y], game[m][n] = ' ', game[x][y]
-                stepping_stone = True
-            inventory['o'] -= 1
-            continue
-        if inventory['o'] <= 0 and inventory['r'] > 0:
-            raft = True
-            inventory['r'] -= 1
-            if stepping_stone:
-                game[x][y], game[m][n] = 'O', game[x][y]
-            else:
-                game[x][y], game[m][n] = ' ', game[x][y]
+            pick_up(temp)
+
+        if game[m][n] == '~':
+            if raft:
+                game[x][y], game[m][n] = '~', game[x][y]
+                continue
+
+            if inventory['r'] <= 0 and inventory['o'] <= 0:
+                print("You dropped into river. Game over.")
+                sock.close()
+            if inventory['o'] > 0:
+                if stepping_stone:
+                    game[x][y], game[m][n] = 'O', game[x][y]
+                else:
+                    game[x][y], game[m][n] = ' ', game[x][y]
+                    stepping_stone = True
+                inventory['o'] -= 1
+                continue
+            if inventory['o'] <= 0 and inventory['r'] > 0:
+                raft = True
+                inventory['r'] -= 1
+                if stepping_stone:
+                    game[x][y], game[m][n] = 'O', game[x][y]
+                else:
+                    game[x][y], game[m][n] = ' ', game[x][y]
 
     if action == 'c' or action == 'C':
         if inventory['a'] <= 0:
