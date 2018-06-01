@@ -16,7 +16,7 @@ view = [['' for _ in range(5)] for _ in range(5)]
 
 pickable = ['a', 'k', 'o', '$', ' ']
 
-mapping_table = {(0, 1, '^'): ['r', 'f'], (0, 1, '>'): ['f', '>'], (0, 1, 'v'): ['l', 'f'], (0, 1, '<'): ['l', 'l', 'f'], 
+mapping_table = {(0, 1, '^'): ['r', 'f'], (0, 1, '>'): ['f'], (0, 1, 'v'): ['l', 'f'], (0, 1, '<'): ['l', 'l', 'f'], 
                  (0, -1, '^'): ['l', 'f'], (0, -1, '>'): ['l', 'l', 'f'], (0, -1, 'v'): ['r', 'f'], (0, -1, '<'): ['f'],
                  (1, 0, '^'): ['l', 'l', 'f'], (1, 0, '>'): ['r', 'f'], (1, 0, 'v'): ['f'], (1, 0, '<'): ['l', 'f'],
                  (-1, 0, '^'): ['f'], (-1, 0, '>'): ['l', 'f'], (-1, 0, 'v'): ['l', 'l', 'f'], (-1, 0, '<'): ['r', 'f']}
@@ -49,8 +49,8 @@ class Agent:
 
         self.unvisited = []     # use to stored all the walkable but unvisited cells
         
-        self.agent_x = 0
-        self.agent_y = 0
+        self.agent_x = 80
+        self.agent_y = 80
 
         self.direction = '^'                  # Always consider the agent direction is '^'  
 
@@ -98,6 +98,7 @@ class Agent:
             view = self.rotate(view, 3)
 
         self.grid[self.agent_x][self.agent_y].visited = True
+        self.grid[self.agent_x][self.agent_y].value = self.direction
 
         # Iterate through the view and update the internal map
         for i in range(5):
@@ -111,9 +112,6 @@ class Agent:
                     if (i == 1 and j == 2) or (i == 2 and j == 1) or (i == 2 and j == 3) or (i == 3 and j == 2):
                         if (x, y) not in self.unvisited and self.grid[x][y].visited == False:
                             self.unvisited.append((x, y))
-
-                if i == 2 and j == 2:
-                    self.grid[x][y].value = self.direction
 
                 if view[i][j] == 'a' and (x, y) not in self.axe_location:
                     self.axe_location.append((x, y))
@@ -129,8 +127,11 @@ class Agent:
                     self.tree_location.append((x, y)) 
                 if view[i][j] == '$' and (x, y) not in self.gold_location:
                     self.gold_location.append((x, y))
+        print('At this stage, the agent direction is: ' + self.direction)
+        print("At this moment, the agent coordinate is: ({0}, {1})".format(self.agent_x, self.agent_y))
+        print('The unvisited list is: {0}'.format(self.unvisited))
 
-    
+
     def children(self, node):
         x, y = node.point    
         
@@ -143,9 +144,16 @@ class Agent:
     def manhattan(self, a, b):
         return abs(a.point[0] - b.point[0]) + abs(a.point[1] - b.point[0])
 
+    def clean_up(self):
+        for row in self.grid:
+            for item in row:
+                item.parent, item.G, item.H = None, 0, 0
+
     # this A star algorithm is adapted from https://gist.github.com/jamiees2/5531924
     # with slightly modify to server our purpose
     def aStar(self, start, goal): # each grid element is a node object
+
+        self.clean_up()
         openset = set()           # The open set
         closedset = set()         # The closed set
 
@@ -158,9 +166,11 @@ class Agent:
             if current.point == goal.point:
                 path = []
                 while current.parent:
+                    current.visited = True
                     path.append(current.point)
                     current = current.parent
                 path.append(current.point)
+                current.visited = True
                 return path[::-1]
 
             openset.remove(current)     # Remove the item from the open set
@@ -186,62 +196,46 @@ class Agent:
         front = self.get_front_tail()   # get the grid in front
         x, y = front.point
         move = move.upper()                   # Convert to upper case
-         
-        if move == 'L':
-            if self.direction == '^':
-                self.direction = '<'
-            elif self.direction == '>':
-                self.direction = '^'
-            elif self.direction == 'v':
-                self.direction = '>'
-            else:
-                self.direction = 'v'
 
-        if move == 'R':
-            if self.direction == '^':
-                self.direction = '>'
-            elif self.direction == '>':
-                self.direction = 'v'
-            elif self.direction == 'v':
-                self.direction = '<'
-            else:
-                self.direction = '^'
+        # if move == 'F':
+        #     if front in ['*', '-', 'T']:      # Do nothing
+        #         return
 
-        if move == 'F':
-            if front in ['*', '-', 'T', ' ']:      # Do nothing
-                return
-
-            self.agent_x, self.agent_y = x, y   # update the agent's location
-            if front == 'a':
-                self.axe_location.remove((x, y))
-                self.inventory['a'] = True
-            if front == 'k':
-                self.key_location.remove((x, y))
-                self.inventory['k'] = True
-            if front == '$':
-                self.gold_location.remove((x, y))
-                self.inventory['$'] = True
-            if front == 'o':
-                self.stepping_stone.remove((x, y))
-                self.inventory['o'] += 1
-            if front == '~':
-                if self.inventory['o'] <= 0 and self.inventory['r']:
-                    self.inventory['r'] == False
-                if self.inventory['o'] >= 1:
-                    self.inventory['o'] -= 1
-                    self.water_location.remove((x, y))
+        #     self.agent_x, self.agent_y = x, y   # update the agent's location
+        #     if front == 'a':
+        #         self.axe_location.remove((x, y))
+        #         self.inventory['a'] = True
+        #     if front == 'k':
+        #         self.key_location.remove((x, y))
+        #         self.inventory['k'] = True
+        #     if front == '$':
+        #         self.gold_location.remove((x, y))
+        #         self.inventory['$'] = True
+        #     if front == 'o':
+        #         self.stepping_stone.remove((x, y))
+        #         self.inventory['o'] += 1
+        #     if front == '~':
+        #         if self.inventory['o'] <= 0 and self.inventory['r']:
+        #             self.inventory['r'] == False
+        #         if self.inventory['o'] >= 1:
+        #             self.inventory['o'] -= 1
+        #             self.water_location.remove((x, y))
 
         if move == 'C' and front== 'T':
             self.inventory['r'] = True
 
     def take_action(self):
-        while len(self.unvisited) != 0:
+        if len(self.unvisited) != 0:
             start = (self.agent_x, self.agent_y)
             end = self.unvisited.pop()
+            if abs(start[0] - end[0]) + abs(start[1] - end[1]) == 1:
+                # return mapping_table[(end[0] - start[0], end[1] - start[1], self.direction)]
+                return self.path_to_actions([start, end])
+            
             path = self.aStar(self.grid[start[0]][start[1]], self.grid[end[0]][end[1]])
             if not path:
-                break
-            self.pending_move += self.path_to_actions(path)
+                return
+            return self.path_to_actions(path)
 
     # convert a list of coordinate tuples to a list of actions
     def path_to_actions(self, path):
@@ -251,21 +245,36 @@ class Agent:
             abs_y = path[i + 1][1] - path[i][1]
             actions += mapping_table[(abs_x, abs_y, self.direction)]
             self.direction = get_direction[(abs_x, abs_y)]
+            self.agent_x += abs_x
+            self.agent_y += abs_y
         return actions
     
     def print_list(self, input_list):
         print('\n'.join(map(''.join, input_list)))
 
+############################################################################################
+######################## Above are the code for Node and Agent class #######################
+
 agent = Agent()
+actions = []
 
 # function to take get action from AI or user
 def get_action(view):
-    agent.update_from_view(view)
-    agent.take_action()
-    action = agent.pending_move.pop(0)
-    agent.update_from_move(action)
-    return action 
-    # # input loop to take input from user (only returns if this is valid)
+
+    global actions
+    
+    if len(actions) == 0:
+        agent.update_from_view(view)
+        actions += agent.take_action()
+        print('The action that supposed to take is: {0}'.format(actions) , '\n')
+        actions.pop(0)
+    else:
+        print('The action that supposed to take is: {0}'.format(list(actions.pop(0))), '\n')
+    while 1:
+        inp = input("Enter Action(s): ")
+        agent.update_from_move(inp)
+        return inp
+
     # while 1:
     #     inp = input("Enter Action(s): ")
     #     inp.strip()
@@ -274,7 +283,8 @@ def get_action(view):
     #         if char in ['f','l','r','c','u','b','F','L','R','C','U','B']:
     #             final_string += char
     #             if final_string:
-    #                  return final_string[0]
+    #                 agent.update_from_move(final_string[0])
+    #                 return final_string[0]
 
 # helper function to print the grid
 def print_grid(view):

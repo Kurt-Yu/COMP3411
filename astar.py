@@ -144,7 +144,5 @@ grid = [[' ', ' ', ' ', ' '],
 path = next_move((0, 0), (1, 3), grid)
 print(path)
 print(path_to_actions(path))
-# print(rotate(path, grid))
-# print(action_to_take(rotate(path, grid)))
 
 
