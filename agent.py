@@ -10,36 +10,14 @@
 
 import sys
 import socket
+from astar import *
+from queue import PriorityQueue
 
 # declaring visible grid to agent
 view = [['' for _ in range(5)] for _ in range(5)]
 
-inventory = {'a':0, 'k':0, 'o':0, '$':0, 'r':0}
-
-pickable = ['a', 'k', 'o', '$']
-
-def move(view):
-    if view[1][2] == ' ':
-        view[2][2], view[1][2] = view[1][2], view[2][2]
-        action.append('f')
-    elif view[1][2] in pickable:
-        inventory[view[1][2]] += 1
-        view[2][2], view[1][2] = ' ', view[2][2]
-    elif view[2][3] == ' ' or view[2][3] in pickable: 
-        action.append('r')
-    elif view[2][1] == ' ' or view[2][1] in pickable: 
-        action.append('l')
-    elif view[1][2] == 'T':
-        if inventory['a'] >= 1:
-            action.append('c') 
-            inventory['r'] += 1
-    elif view[1][2] == '-':
-        if inventory['k'] >= 1:
-            action.append('u')
-    else: 
-        action.append('r', 'r')
-    return action 
-        
+pickable = ['a', 'k', 'o', '$', ' ']
+  
 class Agent:
     def __init__(self):
         self.inventory = {'a':False, 'k':False, '$':False, 'r':False, 'o':0}
@@ -51,6 +29,8 @@ class Agent:
         self.water_location = []
         self.tree_location = []
         self.gold_location = []
+
+        self.unvisited = []     # use to stored all the walkable but unvisited cells
         
         self.agent_x = 0
         self.agent_y = 0
@@ -59,9 +39,9 @@ class Agent:
 
         self.hashmap = {}                     # Initialize the hashmap
         for i in range(-79, 80):              # size 159 * 159 
-            for j in range(-79, 80):   
-                self.hashmap[(i, j)] = '?'    # Initialize the hashmap to unkown value, represent by '?'
-        self.hashmap[(0, 0)] = '^'            # always consider the agent is facing up
+            for j in range(-79, 80):  
+                self.hashmap[(i, j)] = ['?', False]  # Initialize the hashmap to unkown value, represent by '?'    
+        self.hashmap[(0, 0)] = ['^', True]           # always consider the agent is facing up      
 
         self.pending_move = []                # list to store the pending moves
         
@@ -73,7 +53,7 @@ class Agent:
 
     def can_move(self):
         x, y, front = self.get_front_tail()
-        if front in [' ', 'k', 'a']:
+        if front[0] in [' ', 'k', 'a']:
             return True
         return False
 
@@ -101,14 +81,23 @@ class Agent:
         if self.direction == '<':
             view = self.rotate(view, 3)
 
+        self.hashmap[(self.agent_x, self.agent_y)][1] = True
+
         # Iterate through the view and update the internal map
         for i in range(5):
             for j in range(5):
                 x = self.agent_x - (2 - i)
                 y = self.agent_y + (j - 2)
-                self.hashmap[(x, y)] = view[i][j]
+                self.hashmap[(x, y)][0] = view[i][j]
+
+                # stored all adjacent cells which can actually walk through
+                if view[i][j] in pickable:
+                    if (i == 1 and j == 2) or (i == 2 and j == 1) or (i == 2 and j == 3) or (i == 3 and j == 2):
+                        if (x, y) not in self.unvisited and self.hashmap[(x, y)][1] == False:
+                            self.unvisited.append((x, y))
+
                 if i == 2 and j == 2:
-                    self.hashmap[(x, y)] = self.direction
+                    self.hashmap[(x, y)][0] = self.direction
 
                 if view[i][j] == 'a' and (x, y) not in self.axe_location:
                     self.axe_location.append((x, y))
@@ -167,35 +156,129 @@ class Agent:
                 self.stepping_stone.remove((x, y))
                 self.inventory['o'] += 1
             if front == '~':
-                if inventory['o'] <= 0 and inventory['r']:
-                    inventory['r'] == False
-                if inventory['o'] >= 1:
-                    inventory['o'] -= 1
+                if self.inventory['o'] <= 0 and self.inventory['r']:
+                    self.inventory['r'] == False
+                if self.inventory['o'] >= 1:
+                    self.inventory['o'] -= 1
                     self.water_location.remove((x, y))
 
         if move == 'C' and front== 'T':
-            inventory['r'] = True
+            self.inventory['r'] = True
 
-    def move(self):
-        pass
+    def take_action(self):
+        while len(self.unvisited) != 0:
+            start = (self.agent_x, self.agent_y)
+            end = self.unvisited.pop()
+            path, cost = self.a_star_search(self.convert_hashmap_to_list(), start, end)
 
-    def convert_hashmap_to_list(self, hashmap):
-        result = [[ ' ' for i in range(161)] for j in range(161)]
-        for i in range(-80, 81):
-            for j in range(-80, 81):
-                result[i + 80][j + 80] = hashmap[(i, j)]
+
+    # The A* star algorithm, base code come from https://dbader.org/blog/priority-queues-in-python
+    # with slightly modify to server our porpuse
+    def heuristic(self, a, b):
+        return abs(a[0] - b[0]) + abs(a[1] - b[1])
+
+    def neighbors(self, graph, point):
+        result = []
+        x, y = point
+        if x - 1 >= 0 and graph[x - 1][y] == ' ':
+            result.append((x - 1, y))
+        if y - 1 >= 0 and graph[x][y - 1] == ' ':
+            result.append((x, y - 1))
+        if y + 1 < len(graph[0]) and graph[x][y - 1] == ' ':
+            result.append((x, y + 1))
+        if x + 1 < len(graph) and graph[x + 1][y] == ' ':
+            result.append((x + 1, y))
+        return result
+
+    def a_star_search(self, graph, start, goal):
+        frontier = PriorityQueue()
+        frontier.put(start, 0)
+        came_from = {}
+        cost_so_far = {}
+        came_from[start] = None
+        cost_so_far[start] = 0
+        
+        while not frontier.empty():
+            current = frontier.get()
+            
+            if current == goal:
+                break
+            
+            for next in self.neighbors(graph, current):
+                new_cost = cost_so_far[current] + 1
+                if next not in cost_so_far or new_cost < cost_so_far[next]:
+                    cost_so_far[next] = new_cost
+                    priority = new_cost + self.heuristic(goal, next)
+                    frontier.put(next, priority)
+                    came_from[next] = current
+        
+        return came_from, cost_so_far
+
+
+
+    # def astar(self, grid, start, end, direction):
+
+
+    def convert_hashmap_to_list(self):
+        result = [[ ' ' for i in range(160)] for j in range(160)]
+        for i in range(-79, 80):
+            for j in range(-79, 80):
+                result[i + 79][j + 79] = self.hashmap[(i, j)][0]
         return result
     
     def print_list(self, input_list):
         print('\n'.join(map(''.join, input_list)))
 
+    # This function is adapted from https://stackoverflow.com/questions/398299/looping-in-a-spiral
+    # with slightly modify to server our purporse
+    def spiral_traversal(self):
+        x = y = 0
+        dx, dy = 0, -1
+        for _ in range(159 ** 2):
+            if (-159 / 2 < x <= 159 / 2) and (-159 / 2 < y <= 159 / 2):
+                print (x, y)
+                # DO STUFF...
+            if x == y or (x < 0 and x == -y) or (x > 0 and x == 1 - y):
+                dx, dy = -dy, dx
+            x, y = x+dx, y+dy
 
+    # This function is adpated from: http://inventwithpython.com/blogstatic/floodfill/recursivefloodfill.py
+    # with slight modify to serve our porpuse
+    # parameters: 
+    #    game_map is the 2d list that represent the whole map
+    #    x & y: the coordinates of starting point
+    #    old_value & new_value: some character that we would like to change
+    # return:
+    #   Modified game_map which agent can reach from start point to anywhere else
+    def flood_fill(self, game_map, x, y, old_value, new_value, inventory):
+        width = len(game_map)
+        height = len(game_map[0])
+
+        if old_value == None:
+            old_value = game_map[x][y]
+
+        if game_map[x][y] != old_value: # Base case. If the current x, y character is not the old_value, then do nothing.
+            return
+
+        game_map[x][y] = new_value      # Change the character at world[x][y] to newChar
+
+        # Recursive calls. Make a recursive call as long as we are not on the
+        # boundary (which would cause an Index Error.)
+        if x > 0: # left
+            self.flood_fill(game_map, x - 1, y, old_value, new_value, inventory)
+        if y > 0: # up
+            self.flood_fill(game_map, x, y - 1, old_value, new_value, inventory)
+        if x < width - 1: # right
+            self.flood_fill(game_map, x + 1, y, old_value, new_value, inventory)
+        if y < height-1: # down
+            self.flood_fill(game_map, x, y + 1, old_value, new_value, inventory)
 
 agent = Agent()
 
 # function to take get action from AI or user
 def get_action(view):
-    ## REPLACE THIS WITH AI CODE TO CHOOSE ACTION ##
+    agent.update_from_view(view)
+    action = agent.take_action()
 
     # input loop to take input from user (only returns if this is valid)
     while 1:

@@ -1,86 +1,51 @@
-import time
+from queue import PriorityQueue
 
-EMPTY_SPACE_SYMBOLS = ' '
-STARTING_POINT_SYMBOLS = '^'
-OBSTACLE_SYMBOL = '~'
-DIRS = [(-1, 0), (1, 0), (0, 1), (0, -1)]
+def heuristic(a, b):
+    return abs(a[0] - b[0]) + abs(a[1] - b[1])
 
-class HamiltonSolver:
-    def __init__(self, grid):
-        self.grid = grid
-        self.h = h = len(grid)
-        self.w = w = len(grid[0])
+def neighbors(graph, point):
+    result = []
+    x, y = point
+    if x - 1 >= 0 and graph[x - 1][y] == ' ':
+        result.append((x - 1, y))
+    if y - 1 >= 0 and graph[x][y - 1] == ' ':
+        result.append((x, y - 1))
+    if y + 1 < len(graph[0]) and graph[x][y - 1] == ' ':
+        result.append((x, y + 1))
+    if x + 1 < len(graph) and graph[x + 1][y] == ' ':
+        result.append((x + 1, y))
+    return result
 
-        self.start = None
-        self.legal = set()
-        for r, row in enumerate(grid):
-            for c, item in enumerate(row):
-                if item in STARTING_POINT_SYMBOLS:
-                    self.start = (r, c)
-                elif item in EMPTY_SPACE_SYMBOLS:
-                    self.legal.add((r, c))
 
-    def format_solution(self, path):
-        """Format a path as a string."""
-        grid = [[OBSTACLE_SYMBOL] * self.w for _ in range(self.h)]
-        for i, (r, c) in enumerate(path, start=1):
-            grid[r][c] = i
-        w = len(str(len(path) + 1)) + 1
-        return '\n'.join(''.join(str(item).ljust(w) for item in row)
-                         for row in grid)
+def a_star_search(graph, start, goal):
+    frontier = PriorityQueue()
+    frontier.put(start, 0)
+    came_from = {}
+    cost_so_far = {}
+    came_from[start] = None
+    cost_so_far[start] = 0
+    
+    while not frontier.empty():
+        current = frontier.get()
+        
+        if current == goal:
+            break
+        
+        for next in neighbors(graph, current):
+            new_cost = cost_so_far[current] + heuristic(current, next)
+            if next not in cost_so_far or new_cost < cost_so_far[next]:
+                cost_so_far[next] = new_cost
+                priority = new_cost + heuristic(goal, next)
+                frontier.put(next, priority)
+                came_from[next] = current
+    
+    return came_from, cost_so_far
 
-    def solve(self):
-        """Generate solutions as lists of coordinates."""
-        target_path_len = len(self.legal) + 1
-        paths = [[self.start]]
-        while paths:
-            path = paths.pop()
-            if len(path) == target_path_len:
-                yield path
-            r, c = path[-1]
-            for dr, dc in DIRS:
-                new_coord = r + dr, c + dc
-                if new_coord in self.legal and new_coord not in path:
-                    paths.append(path + [new_coord])
 
-PUZZLE_GRID = '''
-~~~~~~~~~~~~~~~~~~~~~~
-~~~~~~~~~~~~~~~~~~~~~~
-~~                  ~~
-~~     ^            ~~
-~~    ~~~           ~~
-~~   ~~~~~          ~~
-~~  ~~~~~~~         ~~
-~~  ~~~~~~~~        ~~
-~~   ~~~~~~~~       ~~
-~~    ~~~~~~~~      ~~
-~~     ~~~~~~~~     ~~
-~~      ~~~~~~~~    ~~
-~~       ~~~~~~~~   ~~
-~~        ~~~~~~~~  ~~
-~~         ~~~~~~~  ~~
-~~          ~~~~~   ~~
-~~           ~~~    ~~
-~~            ~     ~~
-~~                  ~~
-~~~~~~~~~~~~~~~~~~~~~~
-~~~~~~~~~~~~~~~~~~~~~~
-'''.split('\n')[1:-1]
+grid = [[' ',' ', ' '],
+        ['*','*', ' '],
+        ['*',' ', ' ']]
 
-def main():
-    start_time = time.time()
-    n_solutions = 0
-    puzzle = HamiltonSolver(PUZZLE_GRID)
-    for solution in puzzle.solve():
-        if n_solutions == 0:
-            print(puzzle.format_solution(solution))
-            print("First solution found in {} s"
-                  .format(time.time() - start_time))
-        n_solutions += 1
-    print("{} solution{} found in {} s"
-          .format(n_solutions, '' if n_solutions == 1 else 's',
-                  time.time() - start_time))
-
-if __name__ == '__main__':
-    main()
+path, cost = a_star_search(grid, (0, 0), (2, 1))
+print(path)
 
