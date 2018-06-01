@@ -13,151 +13,138 @@ class Node:
     def move_cost(self, other):
         return 0 if self.value == '.' else 1
 
-def children(point, grid):
+
+pickable = ['a', 'k', 'o', '$', ' ']
+
+mapping_table = {(0, 1, '^'): ['r', 'f'], (0, 1, '>'): ['f'], (0, 1, 'v'): ['l', 'f'], (0, 1, '<'): ['l', 'l', 'f'], 
+                 (0, -1, '^'): ['l', 'f'], (0, -1, '>'): ['l', 'l', 'f'], (0, -1, 'v'): ['r', 'f'], (0, -1, '<'): ['f'],
+                 (1, 0, '^'): ['l', 'l', 'f'], (1, 0, '>'): ['r', 'f'], (1, 0, 'v'): ['f'], (1, 0, '<'): ['l', 'f'],
+                 (-1, 0, '^'): ['f'], (-1, 0, '>'): ['l', 'f'], (-1, 0, 'v'): ['l', 'l', 'f'], (-1, 0, '<'): ['r', 'f']}
+
+get_direction = {(0, 1): '>', (0, -1): '<', (1, 0): 'v', (-1, 0): '^'}
+
+d = '^'
+
+def children(node, grid):
+    x, y = node.point    
     
-    x, y = point.point    ## x,y is the point of the agent
-    ## x = x + 80
-    ## y = y + 80
-    min_coord = 0
-    max_coord = len(grid[0])-1
-    ## if and elif statement so algorithm does not produce a path for the agent outside the hashmap
-    if min_coord < x < max_coord and min_coord < y < max_coord:
-        links = [grid[d[0]][d[1]] for d in [(x-1, y),(x,y - 1),(x,y + 1),(x+1,y)]]
-    elif y == min_coord and x == max_coord:
-        links = [grid[d[0]][d[1]] for d in [(x-1,1),(x,y + 1)]]
-    elif y == max_coord and x == min_coord:
-        links = [grid[d[0]][d[1]] for d in [(x+1, y),(x,y - 1)]]
-    elif y == min_coord and x == min_coord:
-        links = [grid[d[0]][d[1]] for d in [(x+1, y),(x,y + 1)]]
-    elif y == max_coord and x == max_coord:
-        links = [grid[d[0]][d[1]] for d in [(x-1, y),(x,y - 1)]]
-    elif y == max_coord and min_coord < x < max_coord:
-        links = [grid[d[0]][d[1]] for d in [(x,y - 1),(x+1,y),(x-1,y)]]
-    elif x == max_coord and min_coord < y < max_coord:
-        links = [grid[d[0]][d[1]] for d in [(x,y - 1),(x-1, y),(x,y+1)]]
-    elif y == min_coord and min_coord < x < max_coord:
-        links = [grid[d[0]][d[1]] for d in [(x-1,y),(x+1, y),(x,y+1)]]
-    else:
-        links = [grid[d[0]][d[1]] for d in [(x, y-1),(x+1, y),(x,y+1)]]
-    return [link for link in links if link.value != '*' and link.value != '~' and link.value != '-']
+    result = []
+    for r, c in [(x - 1, y), (x, y + 1), (x + 1, y), (x, y - 1)]:
+        if r >= 0 and r < len(grid[0]) and c >= 0 and c < len(grid) and grid[r][c].value in pickable:
+            result.append(grid[r][c])
+    return result
 
-def manhattan(point,point2):
-    return abs(point.point[0] - point2.point[0]) + abs(point.point[1]-point2.point[0])
+def manhattan(a, b):
+    return abs(a.point[0] - b.point[0]) + abs(a.point[1]-b.point[0])
 
-def aStar(start, goal, grid):
-    #The open and closed sets
-    openset = set()
-    closedset = set()
-    #Current point is the starting point
-    current = start
-    #Add the starting point to the open set
-    openset.add(current)
-    #While the open set is not empty
-    while openset:
-        # Find the item in the open set with the lowest G + H score
+def aStar(start, goal, grid): # each grid element is a node object
+    openset = set()           # The open set
+    closedset = set()         # The closed set
+
+    current = start           # Current point is the starting point
+    openset.add(current)      # Add the starting point to the open set
+    
+    while openset:            # While the open set is not empty
         current = min(openset, key=lambda o:o.G + o.H)
-        # If it is the item we want, retrace the path and return it
-        if current == goal:
+
+        if current.point == goal.point:
             path = []
             while current.parent:
-                path.append(current)
+                path.append(current.point)
                 current = current.parent
-            path.append(current)
+            path.append(current.point)
             return path[::-1]
-        #Remove the item from the open set
-        openset.remove(current)
-        #Add it to the closed set
-        closedset.add(current)
-        #Loop through the node's children/siblings
-        for node in children(current,grid):
-            #If it is already in the closed set, skip it
-            if node in closedset:
+
+        openset.remove(current)     # Remove the item from the open set
+        closedset.add(current)      # Add it to the closed set
+
+        for node in children(current, grid):
+            if node in closedset:   # If it is already in the closed set, skip it
                 continue
-            #Otherwise if it is already in the open set
-            if node in openset:
-                #Check if we beat the G score 
+            
+            if node in openset:     # Otherwise if it is already in the open set
                 new_g = current.G + current.move_cost(node)
                 if node.G > new_g:
-                    #If so, update the node to have a new parent
                     node.G = new_g
                     node.parent = current
             else:
-                #If it isn't in the open set, calculate the G and H score for the node
                 node.G = current.G + current.move_cost(node)
                 node.H = manhattan(node, goal)
-                #Set the parent to our current item
-                node.parent = current
-                #Add it to the set
-                openset.add(node)
-    #Throw an exception if there is no path
-    raise ValueError('No Path Found')
+                node.parent = current   # Set the parent to our current item
+                openset.add(node)       # Add it to the set
 
-def next_move(agent,tool,grid):
-    #Convert all the points to instances of Node
-    for x in range(len(grid)):
+    raise ValueError('NO Path Found')
+
+def next_move(start, end, grid):        # each grid element is a value
+    for x in range(len(grid)):          # Convert all the points to instances of Node
         for y in range(len(grid[x])):
-            grid[x][y] = Node(grid[x][y],(x,y))
-    ## Get the manhattan path between agent and useful tool or obstacle
-    path = aStar(grid[agent[0]][agent[1]],grid[tool[0]][tool[1]],grid)
-    #Output the path
-    path_coordinates = []
-    print(len(path) - 1)
-    for node in path:
-        x, y = node.point
-        path_coordinates.append((x,y))
-    return path_coordinates
+            grid[x][y] = Node(grid[x][y], (x, y))
+
+    path = aStar(grid[start[0]][start[1]], grid[end[0]][end[1]], grid)
+    return path
+
+# # function to return the action of agent
+# def rotate(path_coordinates, grid):
+#     target_state = list(grid[agent_x][agent_y].value)
+#     for i in range(0, len(path_coordinates)-1):
+#         if path_coordinates[i+1][0] < path_coordinates[i][0]:
+#             target_state.append('^')
+#         elif path_coordinates[i+1][0] > path_coordinates[i][0]:
+#             target_state.append('v')
+#         elif path_coordinates[i+1][1] > path_coordinates[i][1]:
+#             target_state.append('>')
+#         else:
+#             target_state.append('<')
+#     return target_state
+
+# mapping_table = {('^', '>'): ('r'), ('^', 'v'): ('r', 'r'), ('^', '<'): ('l'), ('>', '^'): ('l'), ('>', 'v'): ('r'), ('>', '<'): ('r', 'r'),
+# ('v', '>'): ('l'), ('v', '^'): ('r', 'r'), ('v', '<'): ('l'), ('<', '^'): ('r'), ('<', 'v'): ('l'), ('<', '>'): ('r', 'r')}
 
 
-# function to return the action of agent
-def rotate(path_coordinates, grid):
-    target_state = list(grid[agent_x][agent_y].value)
-    for i in range(0, len(path_coordinates)-1):
-        if path_coordinates[i+1][0] < path_coordinates[i][0]:
-            target_state.append('^')
-        elif path_coordinates[i+1][0] > path_coordinates[i][0]:
-            target_state.append('v')
-        elif path_coordinates[i+1][1] > path_coordinates[i][1]:
-            target_state.append('>')
-        else:
-            target_state.append('<')
-    return target_state
+# def action_to_take(target_state):
+#     action = []
+#     for i in range(0, len(target_state)-1):
+#         try:
+#             action.extend(mapping_table[str(target_state[i]),str(target_state[i+1])] + 'f')
+#         except KeyError:
+#             action.extend('f')
+#     return action
 
-mapping_table = {('^', '>'): ('r'), ('^', 'v'): ('r', 'r'), ('^', '<'): ('l'), ('>', '^'): ('l'), ('>', 'v'): ('r'), ('>', '<'): ('r', 'r'),
-('v', '>'): ('l'), ('v', '^'): ('r', 'r'), ('v', '<'): ('l'), ('<', '^'): ('r'), ('<', 'v'): ('l'), ('<', '>'): ('r', 'r')}
+def path_to_actions(came_from):
+    global d
+    actions = []
+    for i in range(len(came_from) - 1):
+        abs_x = came_from[i + 1][0] - came_from[i][0]
+        abs_y = came_from[i + 1][1] - came_from[i][1]
+        actions += mapping_table[(abs_x, abs_y, d)]
+        d = get_direction[(abs_x, abs_y)]
 
-
-def action_to_take(target_state):
-    action = []
-    target_state = rotate(path_coordinates, grid)
-    for i in range(0, len(target_state)-1):
-        try:
-            action.extend(mapping_table[str(target_state[i]),str(target_state[i+1])] + 'f')
-        except KeyError:
-            action.extend('f')
-    return action
+    return actions
     
 
 # append a list of action for agent to enact upon
 # path between two coordinates if going via water
 
 ## location of the agent
-agent_x, agent_y = 0, 0
+# agent_x, agent_y = 0, 0
 
 ## location of the useful tool/obstacle
-axe_x, axe_y = 2,1
+# axe_x, axe_y = 2,1
 
 ## size of the grid
 ## need to change to 160 and 160 
-x,y = 2,2
+# x,y = 2,2
  
 #grid = hashmap
-grid = [['^',' ', 'x'],
-        ['*','*', 'x'],
-        ['*',' ', 'x']]
+grid = [[' ', ' ', ' ', ' '],
+        ['*', ' ', '*', ' '],
+        ['*', ' ', ' ', ' '],
+        [' ', ' ', ' ', ' ']]
 
-path_coordinates = next_move((agent_x, agent_y),(axe_x, axe_y), grid)
-print(path_coordinates)
-print(rotate(path_coordinates, grid))
-print(action_to_take(rotate(path_coordinates, grid)))
+path = next_move((0, 0), (1, 3), grid)
+print(path)
+print(path_to_actions(path))
+# print(rotate(path, grid))
+# print(action_to_take(rotate(path, grid)))
 
 
