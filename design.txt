@@ -1,3 +1,4 @@
+
 self.grid is a 159 * 159 2d list, each element is a node object, which node object has a point field (which is a tuple that stores the coordinates),
 a unvisited field that indicates if this node has been visited or not, self.value store the actual content in this node.
 self.G, self.H and self.parent is just some variables used in A* star algorithms. Do need to worry about these variables.
@@ -43,3 +44,4 @@ the move is 'f'
 
 
 Do the aboev steps over and over again, the agent would be able to traval to all the wite spaces it can reach at the first place
+
