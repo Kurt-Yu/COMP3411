@@ -60,19 +60,25 @@ class Agent:
                 self.grid[x][y] = Node(self.grid[x][y], (x, y))
 
         self.pending_move = []                # list to store the pending moves
-        
+
+    # Helper function 
     def rotate(self, view, time):                 # rotate 2d list clockwise
         for _ in range(time):
             temp = zip(*view[::-1])               # return a list of tuples
             view = [list(elem) for elem in temp]  # convert list of tuples to list of lists
         return view
 
+    # helper function
     def can_move(self):
         node = self.get_front_tail()
         if node.value in pickable:
             return True
         return False
+    
+    def print_list(self, input_list):
+        print('\n'.join(map(''.join, input_list)))
 
+    # the the cell in front of agent
     def get_front_tail(self):                     # get the grid in front the agent
         if self.direction == '^':
             x = self.agent_x - 1
@@ -87,6 +93,10 @@ class Agent:
             x = self.agent_x
             y = self.agent_y - 1
         return self.grid[x][y]
+
+#######################################################################################
+########## Line 95 to Line 170, Update the self.grid list from view and from move 
+#######################################################################################
 
     def update_from_view(self, view):
         # Rotate the view based on which direction the agent is facing
@@ -131,7 +141,42 @@ class Agent:
         print("At this moment, the agent coordinate is: ({0}, {1})".format(self.agent_x, self.agent_y))
         print('The unvisited list is: {0}'.format(self.unvisited))
 
+    def update_from_move(self, move):
+        front = self.get_front_tail()   # get the grid in front
+        x, y = front.point
+        move = move.upper()                   # Convert to upper case
 
+        # if move == 'F':
+        #     if front in ['*', '-', 'T']:      # Do nothing
+        #         return
+
+        #     self.agent_x, self.agent_y = x, y   # update the agent's location
+        #     if front == 'a':
+        #         self.axe_location.remove((x, y))
+        #         self.inventory['a'] = True
+        #     if front == 'k':
+        #         self.key_location.remove((x, y))
+        #         self.inventory['k'] = True
+        #     if front == '$':
+        #         self.gold_location.remove((x, y))
+        #         self.inventory['$'] = True
+        #     if front == 'o':
+        #         self.stepping_stone.remove((x, y))
+        #         self.inventory['o'] += 1
+        #     if front == '~':
+        #         if self.inventory['o'] <= 0 and self.inventory['r']:
+        #             self.inventory['r'] == False
+        #         if self.inventory['o'] >= 1:
+        #             self.inventory['o'] -= 1
+        #             self.water_location.remove((x, y))
+
+        if move == 'C' and front== 'T':
+            self.inventory['r'] = True
+
+
+#######################################################################################
+############       Line 176 to Line 237, A* algorithm     #############################
+#######################################################################################
     def children(self, node):
         x, y = node.point    
         
@@ -192,44 +237,16 @@ class Agent:
                     openset.add(node)       # Add it to the set
         return None                         # return None if no path is found
 
-    def update_from_move(self, move):
-        front = self.get_front_tail()   # get the grid in front
-        x, y = front.point
-        move = move.upper()                   # Convert to upper case
 
-        # if move == 'F':
-        #     if front in ['*', '-', 'T']:      # Do nothing
-        #         return
-
-        #     self.agent_x, self.agent_y = x, y   # update the agent's location
-        #     if front == 'a':
-        #         self.axe_location.remove((x, y))
-        #         self.inventory['a'] = True
-        #     if front == 'k':
-        #         self.key_location.remove((x, y))
-        #         self.inventory['k'] = True
-        #     if front == '$':
-        #         self.gold_location.remove((x, y))
-        #         self.inventory['$'] = True
-        #     if front == 'o':
-        #         self.stepping_stone.remove((x, y))
-        #         self.inventory['o'] += 1
-        #     if front == '~':
-        #         if self.inventory['o'] <= 0 and self.inventory['r']:
-        #             self.inventory['r'] == False
-        #         if self.inventory['o'] >= 1:
-        #             self.inventory['o'] -= 1
-        #             self.water_location.remove((x, y))
-
-        if move == 'C' and front== 'T':
-            self.inventory['r'] = True
-
+    
+    # if the self.unvisited list is not empty, means there are still some nodes that agent didn't go to.
+    #pop the last element of the list out, if this node is adjecent to agent, then just call path_to_action function with the correct path
+    # if this node is not adjecent to agent, do a A* search, return all the path coordinates that the agent need to follow, then call path_to_actions to get a series of moves    
     def take_action(self):
         if len(self.unvisited) != 0:
             start = (self.agent_x, self.agent_y)
             end = self.unvisited.pop()
             if abs(start[0] - end[0]) + abs(start[1] - end[1]) == 1:
-                # return mapping_table[(end[0] - start[0], end[1] - start[1], self.direction)]
                 return self.path_to_actions([start, end])
             
             path = self.aStar(self.grid[start[0]][start[1]], self.grid[end[0]][end[1]])
@@ -248,9 +265,7 @@ class Agent:
             self.agent_x += abs_x
             self.agent_y += abs_y
         return actions
-    
-    def print_list(self, input_list):
-        print('\n'.join(map(''.join, input_list)))
+
 
 ############################################################################################
 ######################## Above are the code for Node and Agent class #######################
