@@ -1,0 +1,45 @@
+self.grid is a 159 * 159 2d list, each element is a node object, which node object has a point field (which is a tuple that stores the coordinates),
+a unvisited field that indicates if this node has been visited or not, self.value store the actual content in this node.
+self.G, self.H and self.parent is just some variables used in A* star algorithms. Do need to worry about these variables.
+
+At the begin, the agent is at self.grid[80][80], since the map could be 80 * 80, the agent could be at corner, we need at least 159 * 159 grid to ensure 
+the index would not out of range, and put the agent at middle, self.grid[80][80]
+
+Then the children function would check its all 4 adjecent nodes, see if they are white space,
+
+Take s0.in map for example:
+
+~~~~~~~~~~~~~~~~~~~~~
+~  ***  ~~~~~~~~~~~~~
+~ a*$*T ~~~~~~~~~~~~~
+~  *-*  ~~~~~~~~~~~~~
+~~  ^  ~~~~~~~~~   ~~
+~~~~~~~~~~~~~~~  kT ~
+~~~~~~~~~~~~~~~~   ~~
+~~~~~~~~~~~~~~~~~~~~~
+
+In this case, the agent is at (80, 80)
+(79, 80) is '-', is not walkable, not store to self.unvisited
+(80, 79) is ' ', is walkable, store it to self.unvisited
+(80, 81) is ' ', is walkable, store it to self.unvisited
+(81, 80) is '~', is not walkable, not store to self.unvisited
+
+Now the self.unvisited would have two elements, [(80, 79), (80, 81)]
+Pop the last element out, (80, 81), the take_action would return the action the agent needs to go from (80, 80) to (80, 81)
+The acitons are 'r' 'f'
+
+After taking the actions, the agent is at (80, 81), self.direction is '>'
+then do the above steps again, store all the node that are adjacent to it, and is walkable, and also not visisted yet
+
+(79, 81) is '*', is not walkable, not store it to self.unvisited
+(80, 80) is already visited, not store to self.unvisted
+(80, 82) is ' ', is walkable, store it to self.unvisited
+(81, 81) is '~', is not walkable, not store it to self.unvisited
+
+At this stage, self.unvisited has two elements: [(80, 79), (80, 82)]
+
+Then pop the last one out, take_action function will reutrn the moves it need to go from (80, 81) to (80, 82)
+the move is 'f'
+
+
+Do the aboev steps over and over again, the agent would be able to traval to all the wite spaces it can reach at the first place

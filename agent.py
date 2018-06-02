@@ -47,7 +47,7 @@ class Agent:
         self.tree_location = []
         self.gold_location = []
 
-        self.unvisited = []     # use to stored all the walkable but unvisited cells
+        self.unvisited = []                   # use to stored all the walkable but unvisited cells
         
         self.agent_x = 80
         self.agent_y = 80
