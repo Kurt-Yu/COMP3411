@@ -55,6 +55,8 @@ class Agent:
         self.agent_y = 80
         self.initial_x = 80
         self.initial_y = 80
+        self.temp_x = 0
+        self.temp_y = 0
 
         self.direction = '^'                  # Always consider the agent direction is '^'  
 
@@ -142,6 +144,7 @@ class Agent:
         print('At this stage, the agent direction is: ' + self.direction)
         print("At this moment, the agent coordinate is: ({0}, {1})".format(self.agent_x, self.agent_y))
         print('The unvisited list is: {0}'.format(self.unvisited))
+        print('The on_water variable is: {0}'.format(self.on_water))
 
     def update_inventory(self, x, y):
         if self.grid[x][y].value == 'a':
@@ -182,14 +185,14 @@ class Agent:
         return result
 
     def manhattan(self, a, b):
-        return abs(a.point[0] - b.point[0]) + abs(a.point[1] - b.point[0])
+        return abs(a.point[0] - b.point[0]) + abs(a.point[1] - b.point[1])
 
-    def clean_up(self):
-        for i in range(len(self.grid)):
-            for j in range(len(self.grid[i])):
-                self.grid[i][j].G = 0
-                self.grid[i][j].H = 0
-                self.grid[i][j].parent = None
+    def clean_up(self, grid):
+        for i in range(len(grid)):
+            for j in range(len(grid[i])):
+                grid[i][j].G = 0
+                grid[i][j].H = 0
+                grid[i][j].parent = None
 
     # this A star algorithm is adapted from https://gist.github.com/jamiees2/5531924
     # with slightly modify to server our purpose
@@ -211,7 +214,7 @@ class Agent:
                     current = current.parent
                 path.append(current.point)
                 current.visited = True
-                self.clean_up()
+                self.clean_up(grid)
                 return path[::-1]
 
             openset.remove(current)     # Remove the item from the open set
@@ -231,7 +234,7 @@ class Agent:
                     node.H = self.manhattan(node, goal)
                     node.parent = current   # Set the parent to our current item
                     openset.add(node)       # Add it to the set
-        self.clean_up()
+        self.clean_up(grid)
         return None                     # return None if no path is found
 
     # Helper function, given a list of tools, return a part of them that can actual reach by agent
@@ -241,18 +244,20 @@ class Agent:
             x, y = element.point
             if self.grid[x - 1][y].visited or self.grid[x][y - 1].visited or self.grid[x][y + 1].visited or self.grid[x + 1][y].visited:
                 result.append(element)
-                tool_list.remove(element)
+                # tool_list.remove(element)
         return result
     
-    def near_the_tool(self, node, on_water):
+    def near_the_tool(self, node, on_water, raft=False):
         x, y = node.point
         for i, j in [(x - 1, y), (x, y - 1), (x, y + 1), (x + 1, y)]:
             if on_water:
                 if self.grid[i][j].value == '~':
                     return self.grid[i][j]
-            else:
+            if not on_water:
                 if self.grid[i][j].value == ' ':
                     return self.grid[i][j]
+
+
 
     # Flood Fill algorithm adpated from http://inventwithpython.com/blogstatic/floodfill/recursivefloodfill.py
     # with slightly modify to server our purpose
@@ -262,12 +267,12 @@ class Agent:
         worldHeight = len(world[0])
 
         if oldChar == None:
-            oldChar = world[x][y]
+            oldChar = world[x][y].value
 
-        if world[x][y] != oldChar:
+        if world[x][y].value != oldChar:
             return
 
-        world[x][y] = newChar
+        world[x][y].value = newChar
 
         if x > 0: # left
             self.floodFill(world, x-1, y, oldChar, newChar)
@@ -319,8 +324,6 @@ class Agent:
         # Then it should use tools to cut trees and unlock doors
         if self.inventory['a'] and self.inventory['r'] == False:
             reachable_tree = self.reachable_tools(self.tree_location)
-            # print('The agent is ({0}, {1})'.format(self.agent_x, self.agent_y))
-            # print("The reachable tree loication is {0}".format(reachable_tree[0].point))
             while len(reachable_tree) != 0:
                 tree = reachable_tree.pop()
                 node = self.near_the_tool(tree, self.on_water) 
@@ -328,23 +331,76 @@ class Agent:
                 path.append(tree.point)
                 moves = self.path_to_actions(path)
                 moves.insert(-1, 'c')
+                if tree in self.tree_location:
+                    self.tree_location.remove(tree)
                 return moves
 
         if self.inventory['k']:
             reachable_door = self.reachable_tools(self.door_location)
-            while (reachable_door) != 0:
+            while len(reachable_door) != 0: 
                 door = reachable_door.pop()
+
+                node = None
                 node = self.near_the_tool(door, self.on_water)
+                # print('Node is {0}'.format(node.point))
+                # print(door.point)
+                # print(self.agent_x, self.agent_y)
+                if not node:
+                    node = self.near_the_tool(door, False)
+                
                 path = self.aStar(self.grid[self.agent_x][self.agent_y], node, self.grid)
                 if not path:
-                    c = self.my_copy()
-                    x, y = self.water_location.pop().point
-                    self.floodFill(copy, x, y, '~', ' ')
-                    path = self.aStar(self.grid[self.agent_x][self.agent_y], node, c)
-                    path.append(door.point)
-                    moves = self.path_to_actions(path)
-                    moves.insert(-1, 'u')
-                    return moves
+                    if self.on_water == False:
+                        self.temp_x, self.temp_y = self.agent_x, self.agent_y
+
+                        nearest = None
+                        distance = 160
+                        for i in self.water_location:
+                            t = abs(i.point[0] - self.agent_x) + abs(i.point[1] - self.agent_y)
+                            if t < distance:
+                                distance = t
+                                nearest = i
+
+                        act = None
+                        if distance == 1:
+                            act = self.path_to_actions([(self.agent_x, self.agent_y), nearest.point])
+                        else:
+                            nearest_land = self.near_the_tool(nearest, self.on_water)
+                            p = self.aStar(self.grid[self.agent_x][self.agent_y], nearest_land, self.grid)
+                            p.append(nearest.point)
+                            act = self.path_to_actions(p)
+                            self.on_water = True
+                        print(self.grid[self.agent_x][self.agent_y].value)
+                        if self.grid[self.agent_x][self.agent_y] == '~':
+                            self.on_water = True
+                        return act
+                    else:
+                        print('aaaaaaaaaaaa')
+                        adjecent_water = None
+                        print(self.agent_x, self.agent_y)
+                        
+                        for m, n in [(self.agent_x - 1, self.agent_y), (self.agent_x, self.agent_y - 1), (self.agent_x, self.agent_y + 1), (self.agent_x + 1, self.agent_y)]:
+                            if m >= 0 and m < len(self.grid) and n >= 0 and n < len(self.grid[0]) and self.grid[m][n].value == '~':
+                                adjecent_water = self.grid[m][n]
+                                break
+                        print(adjecent_water.value)
+                        print(adjecent_water.point)
+                        c = self.my_copy()
+                        self.floodFill(c, self.temp_x, self.temp_y, ' ', '#')
+                        self.floodFill(c, adjecent_water.point[0], adjecent_water.point[1], '~', ' ')
+                        self.on_water = False
+                        
+                        print(self.agent_x, self.agent_y)
+                        print(node.point)
+                        print(c[81][95].value)
+                        print(c[82][96].value)
+                        path = self.aStar(c[self.agent_x][self.agent_y], node, c)
+                        path.append(door.point)
+                        moves = self.path_to_actions(path)
+                        moves.insert(-1, 'u')
+                        if door in self.door_location:
+                            self.door_location.remove(door)
+                        return moves
 
                 path.append(door.point)
                 moves = self.path_to_actions(path)
@@ -358,10 +414,6 @@ class Agent:
             water = reachable_water.pop()
             node = self.near_the_tool(water, self.on_water)
             path = self.aStar(self.grid[self.agent_x][self.agent_y], node, self.grid)
-            # if not path:
-            #     copy = [x[:] for x in self.unvisited]
-            #     x, y = self.water_location.pop().point
-            #     self.floodFill(copy, x, y, '~', ' ')
                     
             path.append(water.point)
             moves = self.path_to_actions(path)
@@ -381,6 +433,10 @@ class Agent:
             self.agent_y += abs_y
             self.update_inventory(self.agent_x, self.agent_y)
             self.grid[self.agent_x][self.agent_y].visited = True
+            if self.grid[self.agent_x][self.agent_y].value == '~':
+                self.on_water = True
+            if self.grid[self.agent_x][self.agent_y].value == ' ':
+                self.on_water = False 
             if (self.agent_x, self.agent_y) in self.unvisited:
                 self.unvisited.remove((self.agent_x, self.agent_y))
         print('After the moves, the agent coordinates is ({0} {1})'.format(self.agent_x, self.agent_y))
@@ -389,10 +445,11 @@ class Agent:
         return actions
 
     def my_copy(self):
-        result = [['' for _ in range(160)] for _ in range(160)]
+        result = [['?' for _ in range(160)] for _ in range(160)]
         for i in range(len(self.grid)):
             for j in range(len(self.grid[i])):
-                result[i][j] = self.grid[i][j].value
+                node = Node(self.grid[i][j].value, self.grid[i][j].point)
+                result[i][j] = node
         return result
 
 
@@ -401,19 +458,16 @@ class Agent:
 
 agent = Agent()
 actions = []
-count = 0
 
 # function to take get action from AI or user
 def get_action(view):
 
     global actions
-    global count
     
     if len(actions) == 0:
         agent.update_from_view(view, agent.on_water)
         actions = agent.take_action()
         print('The action that supposed to take is: {0}'.format(actions) , '\n')
-        count += 1
         return actions.pop(0)
     else:
         temp = actions.pop(0)
