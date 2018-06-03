@@ -197,6 +197,7 @@ class Agent:
     # this A star algorithm is adapted from https://gist.github.com/jamiees2/5531924
     # with slightly modify to server our purpose
     def aStar(self, start, goal, grid): # each grid element is a node object
+        self.clean_up(grid)
         openset = set()           # The open set
         closedset = set()         # The closed set
 
@@ -254,7 +255,7 @@ class Agent:
                 if self.grid[i][j].value == '~':
                     return self.grid[i][j]
             if not on_water:
-                if self.grid[i][j].value == ' ':
+                if self.grid[i][j].value == ' ' and self.grid[i][j].visited:
                     return self.grid[i][j]
 
 
@@ -327,6 +328,10 @@ class Agent:
             while len(reachable_tree) != 0:
                 tree = reachable_tree.pop()
                 node = self.near_the_tool(tree, self.on_water) 
+                print(tree.point)
+                print(node.point)
+                print(self.agent_x, self.agent_y)
+                print(self.on_water)
                 path = self.aStar(self.grid[self.agent_x][self.agent_y], node, self.grid)
                 path.append(tree.point)
                 moves = self.path_to_actions(path)
@@ -375,7 +380,6 @@ class Agent:
                             self.on_water = True
                         return act
                     else:
-                        print('aaaaaaaaaaaa')
                         adjecent_water = None
                         print(self.agent_x, self.agent_y)
                         
