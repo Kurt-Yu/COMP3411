@@ -32,6 +32,8 @@ class Node:
         self.visited = False
         self.H = 0
         self.G = 0
+        self.length_horizontal = 0
+        self.length_vertical = 0
 
     def move_cost(self, other):
         return 0 if self.value == ' ' else 1
@@ -94,6 +96,19 @@ class Agent:
 #######################################################################################
 ########## Line 95 to Line 170, Update the self.grid list from view and from move 
 #######################################################################################
+    def length_of_water(self, grid):
+        if self.water_location:
+            for i in self.water_location:
+                x, y = self.water_location[i][1]
+                for r, c in [(x - 1, y), (x, y + 1), (x + 1, y), (x, y - 1)]:
+                    if r >= 0 and r < len(grid[0]) and c >= 0 and c < len(grid):
+                        if grid[r][c].value == '~' or grid[r][c].value == ' ':
+                            grid[x][y].length_horizonal += 1
+                for r, c in [(x - 1, y), (x + 1, y)]:
+                    if r >= 0 and r < len(grid[0]) and c >= 0 and c < len(grid):
+                        if grid[r][c].value == '~' or grid[r][c].value == ' ':
+                            grid[x][y].length_vertical += 1
+
 
     def update_from_view(self, view, on_water):
         # Rotate the view based on which direction the agent is facing
@@ -177,7 +192,7 @@ class Agent:
             if r >= 0 and r < len(grid[0]) and c >= 0 and c < len(grid):
                 if grid[r][c].value in pickable and on_water == False:
                     result.append(grid[r][c])
-                if on_water and grid[r][c].value == '~':
+                if on_water and grid[r][c].value == '~' and (self.inventory['r'] == True or self.inventory['o'] > 0):
                     result.append(grid[r][c])      
         return result
 
@@ -257,6 +272,8 @@ class Agent:
     # Flood Fill algorithm adpated from http://inventwithpython.com/blogstatic/floodfill/recursivefloodfill.py
     # with slightly modify to server our purpose
 
+
+
     def floodFill(self, world, x, y, oldChar, newChar):
         worldWidth = len(world)
         worldHeight = len(world[0])
@@ -317,6 +334,8 @@ class Agent:
         # else when the self.unvisited list is empty
         # that means the agent has visit every node that it can reach
         # Then it should use tools to cut trees and unlock doors
+
+
         if self.inventory['a'] and self.inventory['r'] == False:
             reachable_tree = self.reachable_tools(self.tree_location)
             # print('The agent is ({0}, {1})'.format(self.agent_x, self.agent_y))
@@ -332,20 +351,21 @@ class Agent:
 
         if self.inventory['k']:
             reachable_door = self.reachable_tools(self.door_location)
-            while (reachable_door) != 0:
+            start = (self.agent_x, self.agent_y)
+            while len(reachable_door) != 0:
                 door = reachable_door.pop()
                 node = self.near_the_tool(door, self.on_water)
-                path = self.aStar(self.grid[self.agent_x][self.agent_y], node, self.grid)
+                path = self.aStar(self.grid[start[0]][start[1]], node, self.grid)
                 if not path:
                     c = self.my_copy()
                     x, y = self.water_location.pop().point
-                    self.floodFill(copy, x, y, '~', ' ')
+                    self.floodFill(c, x, y, '~', ' ')
                     path = self.aStar(self.grid[self.agent_x][self.agent_y], node, c)
                     path.append(door.point)
                     moves = self.path_to_actions(path)
                     moves.insert(-1, 'u')
                     return moves
-
+                    
                 path.append(door.point)
                 moves = self.path_to_actions(path)
                 moves.insert(-1, 'u')
@@ -368,6 +388,8 @@ class Agent:
             self.on_water = True
             return moves
 
+        # if self.inventory['o'] > 0 and self.on_water == False:
+        #     for 
 
     # convert a list of coordinate tuples to a list of actions
     def path_to_actions(self, path):
