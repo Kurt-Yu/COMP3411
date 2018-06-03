@@ -80,7 +80,10 @@ filename = sys.argv[2]
 game = []       # game is a 2d array that stores the elements of whole map
 with open(filename) as f:
     for line in f:
-        game.append(list(line)[:-1])
+        if '\n' in line:
+            game.append(list(line)[:-1])
+        else:
+            game.append(list(line))
 
 inventory = {'a':0, 'k':0, 'o':0, '$':0, 'r':0}   # Initialise the inventory using a dictionary
 pickable = ['a', 'k', 'o', '$']
